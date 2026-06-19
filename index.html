@@ -121,6 +121,7 @@
             color: #1a73e8;
         }
 
+        .location-info { margin-top: 8px; color: #2980b9; font-weight: bold; }
         .bonus-info { color: #e67e22; font-weight: bold; }
     </style>
 </head>
@@ -165,6 +166,255 @@
         </div>
     </div>
 
-    <script src="script.js"></script>
+    <script>
+        const logBox = document.getElementById('logBox');
+        const locationSelect = document.getElementById('locationSelect');
+        const employeeNameInput = document.getElementById('employeeName');
+        const networkStatus = document.getElementById('networkStatus');
+        const shiftStats = document.getElementById('shiftStats');
+        
+        // 🔐 بيانات الربط بالتليجرام والقناة الخاصة بك
+        const TELEGRAM_BOT_TOKEN = '8899159530:AAEnYvrr7Y_whfUO0T7-HeIgbWfy33oi7ME';
+        const TELEGRAM_CHAT_ID = '-1003959462967'; 
+
+        window.addEventListener('online', updateNetworkStatus);
+        window.addEventListener('offline', updateNetworkStatus);
+
+        function updateNetworkStatus() {
+            if (navigator.onLine) {
+                networkStatus.innerHTML = "🌐 متصل بالإنترنت";
+                networkStatus.className = "status-badge online";
+                syncOfflineData(); 
+            } else {
+                networkStatus.innerHTML = "📡 وضع الأوفلاين (الشبكة مقطوعة)";
+                networkStatus.className = "status-badge offline";
+            }
+        }
+
+        window.onload = function() {
+            updateNetworkStatus();
+            
+            const savedName = localStorage.getItem('emp_name');
+            if (savedName) {
+                employeeNameInput.value = savedName;
+            }
+
+            const todayDateStr = new Date().toLocaleDateString('ar-EG');
+            const lastSavedDate = localStorage.getItem('last_saved_date');
+            if (lastSavedDate && lastSavedDate !== todayDateStr) {
+                localStorage.removeItem('today_check_in');
+                localStorage.removeItem('today_check_out');
+            }
+            localStorage.setItem('last_saved_date', todayDateStr);
+
+            updateMiniDashboard();
+        };
+
+        function startProcess(type) {
+            const empName = employeeNameInput.value.trim();
+            const selectedLocation = locationSelect.value;
+
+            if (!empName) { alert("برجاء كتابة الاسم بالكامل أولاً!"); return; }
+            if (!selectedLocation) { alert("برجاء اختيار موقع العمل أولاً!"); return; }
+
+            localStorage.setItem('emp_name', empName);
+
+            logBox.innerHTML = "⏳ جاري تحديد الموقع الجغرافي...";
+            logBox.style.borderRightColor = '#f1c40f';
+
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        processData(type, position.coords.latitude, position.coords.longitude, selectedLocation, empName);
+                    },
+                    (error) => { 
+                        processData(type, 0, 0, selectedLocation, empName);
+                    }
+                );
+            } else {
+                processData(type, 0, 0, selectedLocation, empName);
+            }
+        }
+
+        function processData(type, lat, lng, locationName, empName) {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            const dateString = now.toLocaleDateString('ar-EG');
+
+            let isLateDeparture = false;
+            if (type === 'انصراف' && now.getHours() >= 19) {
+                isLateDeparture = true;
+            }
+
+            if (type === 'حضور') {
+                localStorage.setItem('today_check_in', now.toISOString());
+            } else {
+                localStorage.setItem('today_check_out', now.toISOString());
+            }
+            updateMiniDashboard();
+
+            const totalHoursFormatted = calculateShiftHours();
+
+            const payload = {
+                employeeName: empName,
+                type: type,
+                date: dateString,
+                time: timeString,
+                latitude: lat === 0 ? "غير متاح" : lat,
+                longitude: lng === 0 ? "غير متاح" : lng,
+                locationName: locationName,
+                lateDeparture: isLateDeparture ? "نعم (يوم ونص)" : "لا",
+                totalWorkHours: totalHoursFormatted,
+                isOfflineData: !navigator.onLine ? "نعم (تم الحفظ بدون إنترنت)" : "لا"
+            };
+
+            if (!navigator.onLine) {
+                saveDataOffline(payload);
+                logBox.innerHTML = `
+                    📥 <strong>تم الحفظ في وضع الأوفلاين!</strong><br>
+                    الشبكة مقطوعة حالياً. تم حفظ عملية الـ <strong>${type}</strong> بأمان على جهازك وسيرسل السيستم البيانات للقناة تلقائياً فور عودة الإنترنت.
+                `;
+                logBox.style.borderRightColor = '#e67e22';
+                return;
+            }
+
+            sendToTelegram(payload);
+        }
+
+        function sendToTelegram(payload) {
+            logBox.innerHTML = "⏳ جاري إرسال البيانات وحفظها في تليجرام...";
+
+            let message = `🔔 *تسجيل ${payload.type} جديد* \n\n`;
+            message += `👤 *الموظف:* ${payload.employeeName}\n`;
+            message += `📍 *الموقع المختار:* ${payload.locationName}\n`;
+            message += `📅 *التاريخ:* ${payload.date}\n`;
+            message += `⏰ *الوقت المعتمد:* ${payload.time}\n`;
+            message += `⏱️ *إجمالي ساعات العمل اليوم:* ${payload.totalWorkHours}\n`;
+            message += `🕒 *انصراف متأخر:* ${payload.lateDeparture}\n`;
+            message += `🌐 *حالة الشبكة أثناء التسجيل:* ${payload.isOfflineData}\n`;
+            
+            if(payload.latitude !== "غير متاح") {
+                message += `🗺️ *الموقع الجغرافي الخرائط:* [اضغط لفتح خريطة المكان](https://www.google.com/maps?q=${payload.latitude},${payload.longitude})\n`;
+            } else {
+                message += `🗺️ *الموقع الجغرافي الخرائط:* غير متاح أو تم رفض الإذن\n`;
+            }
+
+            const telegramUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
+
+            fetch(telegramUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    chat_id: TELEGRAM_CHAT_ID,
+                    text: message,
+                    parse_mode: 'Markdown'
+                })
+            })
+            .then(response => {
+                if (!response.ok) throw new Error('فشل الإرسال لتليجرام');
+                
+                let bonus = payload.lateDeparture === "نعم (يوم ونص)" ? "<br><span class='bonus-info'>🕒 انصراف متأخر: تم احتساب الوقت الإضافي (يوم ونصف).</span>" : "";
+                logBox.innerHTML = `
+                    تم تسجيل <strong>${payload.type}</strong> للموظف <strong>${payload.employeeName}</strong> بنجاح!<br>
+                    📍 الموقع: <strong>${payload.locationName}</strong><br>
+                    📅 التاريخ: ${payload.date}<br>
+                    ⏰ الوقت: ${payload.time}
+                    ${bonus}
+                `;
+                logBox.style.borderRightColor = (payload.type === 'حضور') ? '#2ecc71' : '#e74c3c';
+            })
+            .catch(error => {
+                console.error("خطأ إرسال، تحويل للأوفلاين:", error);
+                saveDataOffline(payload);
+            });
+        }
+
+        function saveDataOffline(payload) {
+            let offlineQueue = JSON.parse(localStorage.getItem('offline_queue')) || [];
+            offlineQueue.push(payload);
+            localStorage.setItem('offline_queue', JSON.stringify(offlineQueue));
+        }
+
+        async function syncOfflineData() {
+            let offlineQueue = JSON.parse(localStorage.getItem('offline_queue')) || [];
+            if (offlineQueue.length === 0) return;
+
+            logBox.innerHTML = `⏳ جاري ترحيل ${offlineQueue.length} عمليات مسجلة أوفلاين...`;
+            
+            for (let i = 0; i < offlineQueue.length; i++) {
+                let payload = offlineQueue[i];
+                payload.isOfflineData = "نعم (تمت المزامنة لاحقاً فور توفر الشبكة)";
+                
+                let message = `📥 *ترحيل عملية متأخرة من وضع الأوفلاين (${payload.type})* \n\n`;
+                message += `👤 *الموظف:* ${payload.employeeName}\n`;
+                message += `📍 *الموقع:* ${payload.locationName}\n`;
+                message += `📅 *التاريخ:* ${payload.date}\n`;
+                message += `⏰ *الوقت الأصلي للحدوث:* ${payload.time}\n`;
+                message += `⏱ *إجمالي ساعات العمل:* ${payload.totalWorkHours}\n`;
+                
+                if(payload.latitude !== "غير متاح") {
+                    message += `🗺️ *الموقع الجغرافي الخرائط:* [اضغط لفتح خريطة المكان](https://www.google.com/maps?q=${payload.latitude},${payload.longitude})\n`;
+                }
+
+                const telegramUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
+
+                try {
+                    await fetch(telegramUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            chat_id: TELEGRAM_CHAT_ID,
+                            text: message,
+                            parse_mode: 'Markdown'
+                        })
+                    });
+                } catch (e) {
+                    console.error("فشلت المزامنة مؤقتاً، سيتم المحاولة لاحقاً", e);
+                    return; 
+                }
+            }
+
+            localStorage.removeItem('offline_queue');
+            updateMiniDashboard();
+            alert("🌐 رائع! تم استعادة الإنترنت وترحيل جميع العمليات المحفوظة أوفلاين بنجاح للقناة.");
+        }
+
+        function calculateShiftHours() {
+            const checkIn = localStorage.getItem('today_check_in');
+            const checkOut = localStorage.getItem('today_check_out');
+            if (checkIn && checkOut) {
+                const diffMs = new Date(checkOut) - new Date(checkIn);
+                if (diffMs > 0) {
+                    const diffHrs = Math.floor(diffMs / 3600000);
+                    const diffMins = Math.floor((diffMs % 3600000) / 60000);
+                    return `${diffHrs} ساعة و ${diffMins} دقيقة`;
+                }
+            }
+            return "غير محدد بعد";
+        }
+
+        function updateMiniDashboard() {
+            const checkIn = localStorage.getItem('today_check_in');
+            const checkOut = localStorage.getItem('today_check_out');
+            
+            let html = "";
+            if (checkIn) {
+                const timeIn = new Date(checkIn).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+                html += `🕒 وقت حضورك اليوم: ${timeIn}<br>`;
+            }
+            if (checkOut) {
+                const timeOut = new Date(checkOut).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+                html += `🕒 وقت انصرافك اليوم: ${timeOut}<br>`;
+            }
+            if (checkIn && checkOut) {
+                html += `<strong>⏱️ إجمالي ساعات العمل: ${calculateShiftHours()}</strong>`;
+            }
+            if (html !== "") {
+                shiftStats.innerHTML = html;
+            } else {
+                shiftStats.innerHTML = "لم يتم تسجيل حضور وانصراف لليوم لحساب الساعات بعد.";
+            }
+        }
+    </script>
 </body>
 </html>
