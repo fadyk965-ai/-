@@ -88,21 +88,26 @@
         </div>
     </div>
 
-    <script {timestamp="2026-06-19"}>
+    <script>
         const logBox = document.getElementById('logBox');
 
         function startProcess(type) {
             logBox.innerHTML = "⏳ جاري تحديد موقعك الجغرافي، برجاء الانتظار...";
             logBox.style.borderRightColor = '#f1c40f';
 
+            // التحقق مما إذا كان المتصفح يدعم تحديد الموقع
             if (navigator.geolocation) {
+                // طلب الموقع الحالي للمستخدم
                 navigator.geolocation.getCurrentPosition(
                     (position) => {
-                        const latitude = position.coords.latitude;
-                        const longitude = position.coords.longitude;
+                        // في حال نجاح جلب الموقع
+                        const latitude = position.coords.latitude;  // خط العرض
+                        const longitude = position.coords.longitude; // خط الطول
+                        
                         recordTimeAndLocation(type, latitude, longitude);
                     },
                     (error) => {
+                        // في حال حدوث خطأ أو رفض المستخدم مشاركة الموقع
                         handleLocationError(error);
                     }
                 );
@@ -117,6 +122,7 @@
             const timeString = now.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
             const dateString = now.toLocaleDateString('ar-EG');
 
+            // عرض البيانات للمستخدم
             logBox.innerHTML = `
                 تم تسجيل <strong>${type}</strong> بنجاح!<br>
                 📅 التاريخ: ${dateString}<br>
@@ -128,6 +134,7 @@
                 </div>
             `;
             
+            // تغيير لون الحافة بناءً على نوع العملية
             logBox.style.borderRightColor = (type === 'حضور') ? '#2ecc71' : '#e74c3c';
         }
 
