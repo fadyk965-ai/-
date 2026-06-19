@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>نظام الحضور والانصراف الذكي</title>
+    <title>نظام الحضور والانصراف الذكي - YAM</title>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -11,8 +11,10 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
+            min-height: 100vh;
             margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
         }
 
         .card {
@@ -21,10 +23,40 @@
             border-radius: 15px;
             box-shadow: 0 8px 24px rgba(0,0,0,0.1);
             text-align: center;
-            width: 380px;
+            width: 100%;
+            max-width: 400px;
         }
 
-        h2 { color: #333; margin-bottom: 25px; }
+        .company-logo {
+            font-size: 36px;
+            font-weight: bold;
+            color: #007bff;
+            margin: 0 0 5px 0;
+            font-family: 'Arial Black', sans-serif;
+        }
+
+        h2 { color: #333; margin-top: 0; margin-bottom: 25px; font-size: 20px; }
+
+        .form-group {
+            text-align: right;
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #555;
+        }
+        .site-select, .name-input {
+            width: 100%;
+            padding: 10px;
+            font-size: 15px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            background-color: #fff;
+            outline: none;
+            box-sizing: border-box;
+        }
 
         .btn-container {
             display: flex;
@@ -51,8 +83,19 @@
         .btn-departure { background-color: #e74c3c; }
         .btn-departure:hover { background-color: #c0392b; }
 
+        .status-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .online { background-color: #d4edda; color: #155724; }
+        .offline { background-color: #f8d7da; color: #721c24; }
+
         .log-box {
-            margin-top: 20px;
+            margin-top: 15px;
             padding: 15px;
             background-color: #f8f9fa;
             border-right: 4px solid #3498db;
@@ -63,14 +106,49 @@
             line-height: 1.6;
         }
 
+        .dashboard-mini {
+            margin-top: 25px;
+            border-top: 2px dashed #e0e0e0;
+            padding-top: 15px;
+            text-align: right;
+        }
+        .dashboard-mini h3 { font-size: 16px; color: #333; margin-bottom: 10px; }
+        .shift-info {
+            background-color: #e8f4fd;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 13px;
+            color: #1a73e8;
+        }
+
         .location-info { margin-top: 8px; color: #2980b9; font-weight: bold; }
+        .bonus-info { color: #e67e22; font-weight: bold; }
     </style>
 </head>
 <body>
 
     <div class="card">
-        <h2>تسجيل الدوام والربط بجوجل شيت</h2>
+        <h1 class="company-logo">YAM</h1>
+        <h2>نظام الحضور والانصراف الذكي</h2>
         
+        <div id="networkStatus" class="status-badge online">🌐 متصل بالإنترنت</div>
+
+        <div class="form-group">
+            <label for="employeeName">👤 اسم الموظف:</label>
+            <input type="text" id="employeeName" class="name-input" placeholder="اكتب اسمك بالكامل أول مرة فقط">
+        </div>
+
+        <div class="form-group">
+            <label for="locationSelect">📍 اختر موقع العمل:</label>
+            <select id="locationSelect" class="site-select">
+                <option value="">-- اختر الموقع من هنا --</option>
+                <option value="المقر الرئيسي">المقر الرئيسي</option>
+                <option value="موقع التجمع الخامس">موقع التجمع الخامس</option>
+                <option value="موقع العاصمة الإدارية">موقع العاصمة الإدارية</option>
+                <option value="موقع أكتوبر">موقع أكتوبر</option>
+            </select>
+        </div>
+
         <div class="btn-container">
             <button class="btn btn-attendance" onclick="startProcess('حضور')">تسجيل حضور</button>
             <button class="btn btn-departure" onclick="startProcess('انصراف')">تسجيل انصراف</button>
@@ -79,85 +157,223 @@
         <div class="log-box" id="logBox">
             لم يتم تسجيل أي عملية بعد.
         </div>
+
+        <div class="dashboard-mini">
+            <h3>📊 ملخص الوردية اليوم:</h3>
+            <div id="shiftStats" class="shift-info">
+                لم يتم تسجيل حضور وانصراف لليوم لحساب الساعات بعد.
+            </div>
+        </div>
     </div>
 
     <script>
         const logBox = document.getElementById('logBox');
+        const locationSelect = document.getElementById('locationSelect');
+        const employeeNameInput = document.getElementById('employeeName');
+        const networkStatus = document.getElementById('networkStatus');
+        const shiftStats = document.getElementById('shiftStats');
         
-        // تم وضع الرابط الجديد الخاص بك هنا مباشرة
-        const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzbmsDOBXg-ZM1s1057Twze8-LOzv7GxfG7Q9v_ANkTR8k1yFaH24KSdV7ZlXxuAVrysw/exec';
+        const GOOGLE_SCRIPT_URL = 'ضع_رابط_جوجل_هنا';
+
+        window.addEventListener('online', updateNetworkStatus);
+        window.addEventListener('offline', updateNetworkStatus);
+
+        function updateNetworkStatus() {
+            if (navigator.onLine) {
+                networkStatus.innerHTML = "🌐 متصل بالإنترنت";
+                networkStatus.className = "status-badge online";
+                syncOfflineData(); 
+            } else {
+                networkStatus.innerHTML = "📡 وضع الأوفلاين (الشبكة مقطوعة)";
+                networkStatus.className = "status-badge offline";
+            }
+        }
+
+        window.onload = function() {
+            updateNetworkStatus();
+            
+            const savedName = localStorage.getItem('emp_name');
+            if (savedName) {
+                employeeNameInput.value = savedName;
+            }
+
+            // تصفير بيانات اليوم القديم تلقائياً لو فتحوا الموقع في يوم جديد
+            const todayDateStr = new Date().toLocaleDateString('ar-EG');
+            const lastSavedDate = localStorage.getItem('last_saved_date');
+            if (lastSavedDate && lastSavedDate !== todayDateStr) {
+                localStorage.removeItem('today_check_in');
+                localStorage.removeItem('today_check_out');
+            }
+            localStorage.setItem('last_saved_date', todayDateStr);
+
+            updateMiniDashboard();
+        };
 
         function startProcess(type) {
-            logBox.innerHTML = "⏳ جاري تحديد موقعك الجغرافي...";
+            const empName = employeeNameInput.value.trim();
+            const selectedLocation = locationSelect.value;
+
+            if (!empName) { alert("برجاء كتابة الاسم بالكامل أولاً!"); return; }
+            if (!selectedLocation) { alert("برجاء اختيار موقع العمل أولاً!"); return; }
+
+            localStorage.setItem('emp_name', empName);
+
+            logBox.innerHTML = "⏳ جاري تحديد الموقع الجغرافي...";
             logBox.style.borderRightColor = '#f1c40f';
 
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(
                     (position) => {
-                        sendDataToGoogleSheet(type, position.coords.latitude, position.coords.longitude);
+                        processData(type, position.coords.latitude, position.coords.longitude, selectedLocation, empName);
                     },
-                    (error) => { handleLocationError(error); }
+                    (error) => { 
+                        processData(type, 0, 0, selectedLocation, empName);
+                    }
                 );
             } else {
-                logBox.innerHTML = "❌ متصفحك لا يدعم خاصية تحديد الموقع الجغرافي.";
-                logBox.style.borderRightColor = '#e74c3c';
+                processData(type, 0, 0, selectedLocation, empName);
             }
         }
 
-        function sendDataToGoogleSheet(type, lat, lng) {
-            logBox.innerHTML = "⏳ جاري إرسال البيانات وحفظها في الشيت...";
-            
+        function processData(type, lat, lng, locationName, empName) {
             const now = new Date();
             const timeString = now.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
             const dateString = now.toLocaleDateString('ar-EG');
 
-            // تجهيز البيانات المتوافقة مع الإرسال الآمن للمتصفحات
-            const formData = new URLSearchParams();
-            formData.append('type', type);
-            formData.append('date', dateString);
-            formData.append('time', timeString);
-            formData.append('latitude', lat);
-            formData.append('longitude', lng);
+            let isLateDeparture = false;
+            if (type === 'انصراف' && now.getHours() >= 19) {
+                isLateDeparture = true;
+            }
 
-            // إرسال البيانات إلى جوجل شيت
+            if (type === 'حضور') {
+                localStorage.setItem('today_check_in', now.toISOString());
+            } else {
+                localStorage.setItem('today_check_out', now.toISOString());
+            }
+            updateMiniDashboard();
+
+            const totalHoursFormatted = calculateShiftHours();
+
+            const payload = {
+                employeeName: empName,
+                type: type,
+                date: dateString,
+                time: timeString, // تثبيت وقت الحدوث الفعلي
+                latitude: lat === 0 ? "غير متاح" : lat,
+                longitude: lng === 0 ? "غير متاح" : lng,
+                locationName: locationName,
+                lateDeparture: isLateDeparture ? "نعم (يوم ونص)" : "لا",
+                totalWorkHours: totalHoursFormatted,
+                isOfflineData: !navigator.onLine ? "نعم (تم الحفظ بدون إنترنت)" : "لا"
+            };
+
+            if (!navigator.onLine) {
+                saveDataOffline(payload);
+                logBox.innerHTML = `
+                    📥 <strong>تم الحفظ في وضع الأوفلاين!</strong><br>
+                    الشبكة مقطوعة حالياً. تم حفظ عملية الـ <strong>${type}</strong> بأمان على جهازك وسيرسل السيستم البيانات للشيت تلقائياً فور عودة الإنترنت.
+                `;
+                logBox.style.borderRightColor = '#e67e22';
+                return;
+            }
+
+            sendToGoogle(payload);
+        }
+
+        function sendToGoogle(payload) {
+            logBox.innerHTML = "⏳ جاري إرسال البيانات وحفظها في جوجل شيت...";
             fetch(GOOGLE_SCRIPT_URL, {
                 method: 'POST',
-                mode: 'no-cors',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: formData.toString()
+                mode: 'no-cors', 
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
             })
             .then(() => {
+                let bonus = payload.lateDeparture === "نعم (يوم ونص)" ? "<br><span class='bonus-info'>🕒 انصراف متأخر: تم احتساب الوقت الإضافي (يوم ونصف).</span>" : "";
                 logBox.innerHTML = `
-                    تم تسجيل <strong>${type}</strong> وإرسالها للشيت بنجاح!<br>
-                    📅 التاريخ: ${dateString}<br>
-                    ⏰ الوقت: ${timeString}<br>
-                    <div class="location-info">
-                        📍 الإحداثيات المحفوظة:<br>
-                        • خط العرض: ${lat.toFixed(6)}<br>
-                        • خط الطول: ${lng.toFixed(6)}
-                    </div>
+                    تم تسجيل <strong>${payload.type}</strong> للموظف <strong>${payload.employeeName}</strong> بنجاح!<br>
+                    📍 الموقع: <strong>${payload.locationName}</strong><br>
+                    📅 التاريخ: ${payload.date}<br>
+                    ⏰ الوقت: ${payload.time}
+                    ${bonus}
                 `;
-                logBox.style.borderRightColor = (type === 'حضور') ? '#2ecc71' : '#e74c3c';
+                logBox.style.borderRightColor = (payload.type === 'حضور') ? '#2ecc71' : '#e74c3c';
             })
             .catch(error => {
-                logBox.innerHTML = "❌ حدث خطأ أثناء إرسال البيانات لجوجل شيت.";
-                logBox.style.borderRightColor = '#e74c3c';
-                console.error('Error:', error);
+                console.error("خطأ إرسال، تحويل للأوفلاين:", error);
+                saveDataOffline(payload);
             });
         }
 
-        function handleLocationError(error) {
-            logBox.style.borderRightColor = '#e74c3c';
-            switch(error.code) {
-                case error.PERMISSION_DENIED:
-                    logBox.innerHTML = "❌ يجب السماح للمتصفح بالوصول للموقع لتسجيل الدوام.";
-                    break;
-                default:
-                    logBox.innerHTML = "❌ حدث خطأ أثناء تحديد الموقع.";
-                    break;
+        function saveDataOffline(payload) {
+            let offlineQueue = JSON.parse(localStorage.getItem('offline_queue')) || [];
+            offlineQueue.push(payload);
+            localStorage.setItem('offline_queue', JSON.stringify(offlineQueue));
+        }
+
+        // تصحيح ثغرة التزامن اللحظي باستخدام async/await لضمان عدم ضياع الداتا
+        async function syncOfflineData() {
+            let offlineQueue = JSON.parse(localStorage.getItem('offline_queue')) || [];
+            if (offlineQueue.length === 0) return;
+
+            logBox.innerHTML = `⏳ جاري ترحيل ${offlineQueue.length} عمليات مسجلة أوفلاين...`;
+            
+            for (let i = 0; i < offlineQueue.length; i++) {
+                let payload = offlineQueue[i];
+                payload.isOfflineData = "نعم (تمت المزامنة لاحقاً)";
+                try {
+                    await fetch(GOOGLE_SCRIPT_URL, {
+                        method: 'POST',
+                        mode: 'no-cors',
+                        body: JSON.stringify(payload)
+                    });
+                } catch (e) {
+                    console.error("فشلت المزامنة مؤقتاً، سيتم المحاولة لاحقاً", e);
+                    return; // إيقاف التزامن لو النت قطع تاني فجأة
+                }
+            }
+
+            localStorage.removeItem('offline_queue');
+            updateMiniDashboard();
+            alert("🌐 رائع! تم استعادة الإنترنت وترحيل جميع العمليات المحفوظة أوفلاين بنجاح لجوجل شيت.");
+        }
+
+        function calculateShiftHours() {
+            const checkIn = localStorage.getItem('today_check_in');
+            const checkOut = localStorage.getItem('today_check_out');
+            if (checkIn && checkOut) {
+                const diffMs = new Date(checkOut) - new Date(checkIn);
+                if (diffMs > 0) {
+                    const diffHrs = Math.floor(diffMs / 3600000);
+                    const diffMins = Math.floor((diffMs % 3600000) / 60000);
+                    return `${diffHrs} ساعة و ${diffMins} دقيقة`;
+                }
+            }
+            return "غير محدد بعد";
+        }
+
+        function updateMiniDashboard() {
+            const checkIn = localStorage.getItem('today_check_in');
+            const checkOut = localStorage.getItem('today_check_out');
+            
+            let html = "";
+            if (checkIn) {
+                const timeIn = new Date(checkIn).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+                html += `🕒 وقت حضورك اليوم: ${timeIn}<br>`;
+            }
+            if (checkOut) {
+                const timeOut = new Date(checkOut).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+                html += `🕒 وقت انصرافك اليوم: ${timeOut}<br>`;
+            }
+            if (checkIn && checkOut) {
+                html += `<strong>⏱️ إجمالي ساعات العمل: ${calculateShiftHours()}</strong>`;
+            }
+            if (html !== "") {
+                shiftStats.innerHTML = html;
+            } else {
+                shiftStats.innerHTML = "لم يتم تسجيل حضور وانصراف لليوم لحساب الساعات بعد.";
             }
         }
     </script>
-
 </body>
 </html>
