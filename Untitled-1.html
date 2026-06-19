@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام الحضور والانصراف بالموقع</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f4f7f6;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .card {
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 15px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+            text-align: center;
+            width: 380px;
+        }
+
+        h2 {
+            color: #333;
+            margin-bottom: 25px;
+        }
+
+        .btn-container {
+            display: flex;
+            justify-content: space-between;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 12px 20px;
+            font-size: 16px;
+            font-weight: bold;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: white;
+        }
+
+        .btn-attendance { background-color: #2ecc71; }
+        .btn-attendance:hover { background-color: #27ae60; }
+
+        .btn-departure { background-color: #e74c3c; }
+        .btn-departure:hover { background-color: #c0392b; }
+
+        .log-box {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-right: 4px solid #3498db;
+            border-radius: 4px;
+            text-align: right;
+            font-size: 14px;
+            color: #555;
+            line-height: 1.6;
+        }
+
+        .location-info {
+            margin-top: 8px;
+            color: #2980b9;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="card">
+        <h2>تسجيل الدوام بالموقع الجغرافي</h2>
+        
+        <div class="btn-container">
+            <button class="btn btn-attendance" onclick="startProcess('حضور')">تسجيل حضور</button>
+            <button class="btn btn-departure" onclick="startProcess('انصراف')">تسجيل انصراف</button>
+        </div>
+
+        <div class="log-box" id="logBox">
+            لم يتم تسجيل أي عملية بعد.
+        </div>
+    </div>
+
+    <script>
+        const logBox = document.getElementById('logBox');
+
+        function startProcess(type) {
+            logBox.innerHTML = "⏳ جاري تحديد موقعك الجغرافي، برجاء الانتظار...";
+            logBox.style.borderRightColor = '#f1c40f';
+
+            // التحقق مما إذا كان المتصفح يدعم تحديد الموقع
+            if (navigator.geolocation) {
+                // طلب الموقع الحالي للمستخدم
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        // في حال نجاح جلب الموقع
+                        const latitude = position.coords.latitude;  // خط العرض
+                        const longitude = position.coords.longitude; // خط الطول
+                        
+                        recordTimeAndLocation(type, latitude, longitude);
+                    },
+                    (error) => {
+                        // في حال حدوث خطأ أو رفض المستخدم مشاركة الموقع
+                        handleLocationError(error);
+                    }
+                );
+            } else {
+                logBox.innerHTML = "❌ متصفحك لا يدعم خاصية تحديد الموقع الجغرافي.";
+                logBox.style.borderRightColor = '#e74c3c';
+            }
+        }
+
+        function recordTimeAndLocation(type, lat, lng) {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            const dateString = now.toLocaleDateString('ar-EG');
+
+            // عرض البيانات للمستخدم
+            logBox.innerHTML = `
+                تم تسجيل <strong>${type}</strong> بنجاح!<br>
+                📅 التاريخ: ${dateString}<br>
+                ⏰ الوقت: ${timeString}<br>
+                <div class="location-info">
+                    📍 الإحداثيات المستلمة:<br>
+                    • خط العرض: ${lat.toFixed(6)}<br>
+                    • خط الطول: ${lng.toFixed(6)}
+                </div>
+            `;
+            
+            // تغيير لون الحافة بناءً على نوع العملية
+            logBox.style.borderRightColor = (type === 'حضور') ? '#2ecc71' : '#e74c3c';
+        }
+
+        function handleLocationError(error) {
+            logBox.style.borderRightColor = '#e74c3c';
+            switch(error.code) {
+                case error.PERMISSION_DENIED:
+                    logBox.innerHTML = "❌ نعتذر، يجب السماح للمتصفح بالوصول للموقع لتتمكن من تسجيل الدوام.";
+                    break;
+                case error.POSITION_UNAVAILABLE:
+                    logBox.innerHTML = "❌ معلومات الموقع غير متوفرة حالياً.";
+                    break;
+                case error.TIMEOUT:
+                    logBox.innerHTML = "⏰ انتهت مهلة طلب الموقع، يرجى المحاولة مجدداً.";
+                    break;
+                default:
+                    logBox.innerHTML = "❌ حدث خطأ غير معروف أثناء تحديد الموقع.";
+                    break;
+            }
+        }
+    </script>
+
+</body>
+</html>
