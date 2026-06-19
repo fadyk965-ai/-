@@ -87,6 +87,38 @@
         // ⚠️ ضَع الرابط الذي نسخته من الـ Web App الخاص بجوجل شيت هنا بين العلامتين
         const GOOGLE_SCRIPT_URL = 'ضع_رابط_جوجل_هنا';
 
+        // 📍 هنا بنسجل المواقع والفروع المتوفرة عندك بالإحداثيات والنطاق بالمتر
+        // (تقدر تعدل الأرقام دي والأسماء براحتك أو تضيف فروع تانية)
+        const SAVED_LOCATIONS = [
+            { name: "المقر الرئيسي (الدقي)", lat: 30.0384, lng: 31.2124, radius: 50 },
+            { name: "فرع التجمع الخامس", lat: 30.0169, lng: 31.4334, radius: 70 },
+            { name: "فرع الإسكندرية", lat: 31.2001, lng: 29.9187, radius: 60 }
+        ];
+
+        // 🧮 دالة لحساب المسافة بين نقطتين بالمتر (Haversine Formula)
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371000; // نصف قطر الأرض بالمتر
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return R * c; // المسافة بالمتر
+        }
+
+        // 🔍 دالة لفحص موقع الموظف ومقارنته بالفروع المتسجلة
+        function detectLocationName(employeeLat, employeeLng) {
+            for (let location of SAVED_LOCATIONS) {
+                const distance = calculateDistance(employeeLat, employeeLng, location.lat, location.lng);
+                // لو الموظف جوه النطاق (الـ radius) المسموح للفرع
+                if (distance <= location.radius) {
+                    return location.name;
+                }
+            }
+            return "موقع غير معروف / خارج النطاق المسموح";
+        }
+
         function startProcess(type) {
             logBox.innerHTML = "⏳ جاري تحديد موقعك الجغرافي...";
             logBox.style.borderRightColor = '#f1c40f';
@@ -105,36 +137,41 @@
         }
 
         function sendDataToGoogleSheet(type, lat, lng) {
-            logBox.innerHTML = "⏳ جاري إرسال البيانات وحفظها في الشيت...";
+            logBox.innerHTML = "⏳ جاري فحص الموقع وإرسال البيانات...";
             
+            // تحديد اسم الموقع بناءً على الإحداثيات
+            const detectedLocation = detectLocationName(lat, lng);
+
             const now = new Date();
             const timeString = now.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
             const dateString = now.toLocaleDateString('ar-EG');
 
-            // تجهيز البيانات لإرسالها
+            // تجهيز البيانات لإرسالها (ضفنا فيها اسم الموقع المكتشف تلقائياً)
             const payload = {
                 type: type,
                 date: dateString,
                 time: timeString,
                 latitude: lat,
-                longitude: lng
+                longitude: lng,
+                locationName: detectedLocation // الحقل الجديد اللي هيروح لجوجل شيت
             };
 
             // إرسال البيانات باستخدام Fetch API لجوجل شيت
             fetch(GOOGLE_SCRIPT_URL, {
                 method: 'POST',
-                mode: 'no-cors', // لتفادي مشاكل الأمان الخاصة بالمتصفح أثناء الإرسال الخارجي
+                mode: 'no-cors',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             })
             .then(() => {
-                // عرض رسالة النجاح للموظف بعد الإرسال
+                // عرض رسالة النجاح للموظف بعد الإرسال مع اسم الموقع
                 logBox.innerHTML = `
                     تم تسجيل <strong>${type}</strong> وإرسالها للشيت بنجاح!<br>
                     📅 التاريخ: ${dateString}<br>
                     ⏰ الوقت: ${timeString}<br>
+                    📍 الموقع المكتشف: <strong>${detectedLocation}</strong><br>
                     <div class="location-info">
-                        📍 الإحداثيات المحفوظة:<br>
+                        🗺️ الإحداثيات المحفوظة:<br>
                         • خط العرض: ${lat.toFixed(6)}<br>
                         • خط الطول: ${lng.toFixed(6)}
                     </div>
