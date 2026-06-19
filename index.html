@@ -173,9 +173,10 @@
         const networkStatus = document.getElementById('networkStatus');
         const shiftStats = document.getElementById('shiftStats');
         
-        // البيانات الخاصة بك
+        // 🔐 البيانات الخاصة بك والربط
         const TELEGRAM_BOT_TOKEN = '8899159530:AAEnYvrr7Y_whfUO0T7-HeIgbWfy33oi7ME';
         const TELEGRAM_CHAT_ID = '-1003959462967'; 
+        const MAKE_WEBHOOK_URL = 'https://hook.eu1.make.com/jgyvoae2n1kw8in03sy5rv735wt9g42n';
 
         window.addEventListener('online', updateNetworkStatus);
         window.addEventListener('offline', updateNetworkStatus);
@@ -223,13 +224,11 @@
             logBox.style.borderRightColor = '#f1c40f';
 
             if (navigator.geolocation) {
-                // تفعيل خيار الدقة العالية لضمان جلب إحداثيات صحيحة بنسبة 100%
                 navigator.geolocation.getCurrentPosition(
                     async (position) => {
                         const lat = position.coords.latitude;
                         const lng = position.coords.longitude;
                         
-                        // استدعاء دالة تحويل الإحداثيات لعنوان عربي
                         const realAddress = await getAddressFromCoords(lat, lng);
                         processData(type, lat, lng, selectedLocation, empName, realAddress);
                     },
@@ -243,7 +242,6 @@
             }
         }
 
-        // دالة مخصصة لترجمة خطوط الطول والعرض لعنوان حقيقي باللغة العربية
         async function getAddressFromCoords(lat, lng) {
             try {
                 const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&accept-language=ar`);
@@ -276,6 +274,7 @@
             updateMiniDashboard();
 
             const totalHoursFormatted = calculateShiftHours();
+            const mapUrl = lat !== 0 ? `https://www.google.com/maps?q=${lat},${lng}` : "غير متاح";
 
             const payload = {
                 employeeName: empName,
@@ -285,7 +284,8 @@
                 latitude: lat === 0 ? "غير متاح" : lat,
                 longitude: lng === 0 ? "غير متاح" : lng,
                 locationName: locationName,
-                actualAddress: realAddress, // إضافة العنوان الفعلي هنا
+                actualAddress: realAddress,
+                mapUrl: mapUrl,
                 lateDeparture: isLateDeparture ? "نعم (يوم ونص)" : "لا",
                 totalWorkHours: totalHoursFormatted,
                 isOfflineData: !navigator.onLine ? "نعم (تم الحفظ بدون إنترنت)" : "لا"
@@ -295,22 +295,22 @@
                 saveDataOffline(payload);
                 logBox.innerHTML = `
                     📥 <strong>تم الحفظ في وضع الأوفلاين!</strong><br>
-                    الشبكة مقطوعة حالياً. تم حفظ عملية الـ <strong>${type}</strong> بأمان على جهازك وسيرسل السيستم البيانات لتليجرام تلقائياً فور عودة الإنترنت.
+                    الشبكة مقطوعة حالياً. سيتم إرسال البيانات لتليجرام وشيت الإكسيل تلقائياً فور عودة الإنترنت.
                 `;
                 logBox.style.borderRightColor = '#e67e22';
                 return;
             }
 
+            // الإرسال المتزامن لتليجرام ولشيت الإكسيل (Make)
             sendToTelegram(payload);
+            sendToMakeWebhook(payload);
         }
 
         function sendToTelegram(payload) {
-            logBox.innerHTML = "⏳ جاري إرسال البيانات وحفظها في تليجرام...";
-
             let message = `🔔 *تسجيل ${payload.type} جديد* \n\n`;
             message += `👤 *الموظف:* ${payload.employeeName}\n`;
             message += `📍 *الموقع المستهدف:* ${payload.locationName}\n`;
-            message += `🌍 *الموقع الفعلي الحالي:* ${payload.actualAddress}\n`; // سطر يوضح هو فين بالظبط
+            message += `🌍 *الموقع الفعلي الحالي:* ${payload.actualAddress}\n`;
             message += `📅 *التاريخ:* ${payload.date}\n`;
             message += `⏰ *الوقت المعتمد:* ${payload.time}\n`;
             message += `⏱️ *إجمالي ساعات العمل اليوم:* ${payload.totalWorkHours}\n`;
@@ -318,7 +318,7 @@
             message += `🌐 *حالة الشبكة أثناء التسجيل:* ${payload.isOfflineData}\n`;
             
             if(payload.latitude !== "غير متاح") {
-                message += `🗺️ *رابط الخريطة المباشر:* [اضغط لفتح خريطة المكان](https://www.google.com/maps?q=${payload.latitude},${payload.longitude})\n`;
+                message += `🗺️ *رابط الخريطة المباشر:* [اضغط لفتح خريطة المكان](Standard URL)\n`;
             }
 
             const telegramUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
@@ -331,22 +331,30 @@
                     text: message,
                     parse_mode: 'Markdown'
                 })
+            }).catch(err => console.error("خطأ تليجرام:", err));
+        }
+
+        function sendToMakeWebhook(payload) {
+            logBox.innerHTML = "⏳ جاري إرسال البيانات وحفظها في تليجرام وشيت الإكسيل...";
+
+            fetch(MAKE_WEBHOOK_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
             })
             .then(response => {
-                if (!response.ok) throw new Error('فشل الإرسال لتليجرام');
-                
                 let bonus = payload.lateDeparture === "نعم (يوم ونص)" ? "<br><span class='bonus-info'>🕒 انصراف متأخر: تم احتساب الوقت الإضافي (يوم ونصف).</span>" : "";
                 logBox.innerHTML = `
                     تم تسجيل <strong>${payload.type}</strong> للموظف <strong>${payload.employeeName}</strong> بنجاح!<br>
                     📍 الموقع المختار: <strong>${payload.locationName}</strong><br>
                     🌍 موقعك الفعلي: <strong>${payload.actualAddress}</strong><br>
-                    📅 التاريخ: ${payload.date} | ⏰ الوقت: ${payload.time}
+                    📊 تم التحديث في شيت الإكسيل وتليجرام.
                     ${bonus}
                 `;
                 logBox.style.borderRightColor = (payload.type === 'حضور') ? '#2ecc71' : '#e74c3c';
             })
             .catch(error => {
-                console.error("خطأ إرسال، تحويل للأوفلاين:", error);
+                console.error("خطأ إرسال لـ Make:", error);
                 saveDataOffline(payload);
             });
         }
@@ -367,39 +375,23 @@
                 let payload = offlineQueue[i];
                 payload.isOfflineData = "نعم (تمت المزامنة لاحقاً فور توفر الشبكة)";
                 
-                let message = `📥 *ترحيل عملية متأخرة من وضع الأوفلاين (${payload.type})* \n\n`;
-                message += `👤 *الموظف:* ${payload.employeeName}\n`;
-                message += `📍 *الموقع:* ${payload.locationName}\n`;
-                message += `🌍 *الموقع الفعلي الحقيقي:* ${payload.actualAddress}\n`;
-                message += `📅 *التاريخ:* ${payload.date}\n`;
-                message += `⏰ *الوقت الأصلي للحدوث:* ${payload.time}\n`;
-                message += `⏱ *إجمالي ساعات العمل:* ${payload.totalWorkHours}\n`;
+                sendToTelegram(payload);
                 
-                if(payload.latitude !== "غير متاح") {
-                    message += `🗺️ *الموقع الجغرافي الخرائط:* [اضغط لفتح خريطة المكان](https://www.google.com/maps?q=${payload.latitude},${payload.longitude})\n`;
-                }
-
-                const telegramUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
-
                 try {
-                    await fetch(telegramUrl, {
+                    await fetch(MAKE_WEBHOOK_URL, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            chat_id: TELEGRAM_CHAT_ID,
-                            text: message,
-                            parse_mode: 'Markdown'
-                        })
+                        body: JSON.stringify(payload)
                     });
                 } catch (e) {
-                    console.error("فشلت المزامنة مؤقتاً، سيتم المحاولة لاحقاً", e);
+                    console.error("فشلت مزامنة الويب هوك مؤقتاً", e);
                     return; 
                 }
             }
 
             localStorage.removeItem('offline_queue');
             updateMiniDashboard();
-            alert("🌐 رائع! تم استعادة الإنترنت وترحيل جميع العمليات المحفوظة أوفلاين بنجاح للقناة.");
+            alert("🌐 رائع! تم استعادة الإنترنت ومزامنة الإكسيل وتليجرام بالعمليات المحفوظة أوفلاين بنجاح.");
         }
 
         function calculateShiftHours() {
