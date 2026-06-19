@@ -84,8 +84,8 @@
     <script>
         const logBox = document.getElementById('logBox');
         
-        // ⚠️ ضع رابط الـ Web app الخاص بك هنا بدلاً من الرابط الحالي
-        const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzT5yz37WD_RHg0eUMwsPh0uVrhvNvJou6cub7Gi57tF6JkGo6fP49Al08JgA_-hjQC0w/exec';
+        // تم وضع الرابط الجديد الخاص بك هنا مباشرة
+        const GOOGLE_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzbmsDOBXg-ZM1s1057Twze8-LOzv7GxfG7Q9v_ANkTR8k1yFaH24KSdV7ZlXxuAVrysw/exec';
 
         function startProcess(type) {
             logBox.innerHTML = "⏳ جاري تحديد موقعك الجغرافي...";
@@ -111,7 +111,7 @@
             const timeString = now.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
             const dateString = now.toLocaleDateString('ar-EG');
 
-            // تجهيز البيانات كـ URLSearchParams لضمان قراءتها بشكل كامل من خوادم جوجل بدون مشاكل CORS
+            // تجهيز البيانات المتوافقة مع الإرسال الآمن للمتصفحات
             const formData = new URLSearchParams();
             formData.append('type', type);
             formData.append('date', dateString);
@@ -119,7 +119,7 @@
             formData.append('latitude', lat);
             formData.append('longitude', lng);
 
-            // إرسال البيانات
+            // إرسال البيانات إلى جوجل شيت
             fetch(GOOGLE_SCRIPT_URL, {
                 method: 'POST',
                 mode: 'no-cors',
