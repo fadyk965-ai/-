@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>نظام الحضور والانصراف الذكي - YAM</title>
+    <!-- مكتبة توليد ملفات الإكسيل العادية XLSX -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -121,8 +123,35 @@
             color: #1a73e8;
         }
 
-        .location-info { margin-top: 8px; color: #2980b9; font-weight: bold; }
-        .bonus-info { color: #e67e22; font-weight: bold; }
+        /* تنسيقات قسم المدير السري */
+        .admin-section {
+            margin-top: 30px;
+            padding-top: 15px;
+            border-top: 2px solid #eee;
+            text-align: center;
+        }
+        .admin-toggle {
+            font-size: 12px;
+            color: #999;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+        .admin-content {
+            display: none;
+            margin-top: 10px;
+        }
+        .btn-excel {
+            background-color: #1f7246;
+            color: white;
+            width: 100%;
+            padding: 10px;
+            font-weight: bold;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-top: 8px;
+        }
+        .btn-excel:hover { background-color: #155231; }
     </style>
 </head>
 <body>
@@ -151,7 +180,7 @@
 
         <div class="btn-container">
             <button class="btn btn-attendance" onclick="startProcess('حضور')">تسجيل حضور</button>
-            <button class="btn btn-departure" onclick="startProcess('انصراف')">تسجيل انصراف</button>
+            <button class="btn btn-departure" onclick="withCheckOutLogic()">تسجيل انصراف</button>
         </div>
 
         <div class="log-box" id="logBox">
@@ -164,6 +193,16 @@
                 لم يتم تسجيل حضور وانصراف لليوم لحساب الساعات بعد.
             </div>
         </div>
+
+        <!-- 🔒 قسم لوحة المدير السري لاستخراج الإكسيل -->
+        <div class="admin-section">
+            <span class="admin-toggle" onclick="toggleAdminPanel()">🔒 لوحة التحكم للمدير (إكسيل)</span>
+            <div id="adminContent" class="admin-content">
+                <input type="password" id="adminPass" class="name-input" placeholder="أدخل كلمة مرور المدير" style="text-align: center; margin-bottom: 5px;">
+                <button class="btn-excel" onclick="exportToExcel()">تحميل تقرير إكسيل شامل 📊</button>
+                <button class="btn-excel" onclick="clearAllData()" style="background-color: #c0392b; margin-top: 5px; font-size: 12px;">تصفير وإعادة تعيين قاعدة البيانات ⚠️</button>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -173,10 +212,9 @@
         const networkStatus = document.getElementById('networkStatus');
         const shiftStats = document.getElementById('shiftStats');
         
-        // 🔐 البيانات الخاصة بك والربط
+        // إعدادات التليجرام الثابتة الخاصة بك
         const TELEGRAM_BOT_TOKEN = '8899159530:AAEnYvrr7Y_whfUO0T7-HeIgbWfy33oi7ME';
         const TELEGRAM_CHAT_ID = '-1003959462967'; 
-        const MAKE_WEBHOOK_URL = 'https://hook.eu1.make.com/jgyvoae2n1kw8in03sy5rv735wt9g42n';
 
         window.addEventListener('online', updateNetworkStatus);
         window.addEventListener('offline', updateNetworkStatus);
@@ -251,9 +289,12 @@
                 }
                 return "يتعذر تحديد اسم المنطقة بدقة";
             } catch (error) {
-                console.error("فشل جلب اسم العنوان:", error);
                 return "تم جلب الإحداثيات (وتعذر الاتصال بخادم العناوين)";
             }
+        }
+
+        function withCheckOutLogic() {
+            startProcess('انصراف');
         }
 
         function processData(type, lat, lng, locationName, empName, realAddress) {
@@ -277,48 +318,46 @@
             const mapUrl = lat !== 0 ? `https://www.google.com/maps?q=${lat},${lng}` : "غير متاح";
 
             const payload = {
-                employeeName: empName,
-                type: type,
-                date: dateString,
-                time: timeString,
-                latitude: lat === 0 ? "غير متاح" : lat,
-                longitude: lng === 0 ? "غير متاح" : lng,
-                locationName: locationName,
-                actualAddress: realAddress,
-                mapUrl: mapUrl,
-                lateDeparture: isLateDeparture ? "نعم (يوم ونص)" : "لا",
-                totalWorkHours: totalHoursFormatted,
-                isOfflineData: !navigator.onLine ? "نعم (تم الحفظ بدون إنترنت)" : "لا"
+                "نوع العملية": type,
+                "اسم الموظف": empName,
+                "الموقع المستهدف": locationName,
+                "العنوان الفعلي الحالي": realAddress,
+                "التاريخ": dateString,
+                "الوقت": timeString,
+                "إجمالي ساعات العمل": totalHoursFormatted,
+                "انصراف متأخر": isLateDeparture ? "نعم (يوم ونص)" : "لا",
+                "رابط الخريطة": mapUrl,
+                "أوفلاين": !navigator.onLine ? "نعم" : "لا"
             };
+
+            // 💾 حفظ الحركة في السجل الداخلي لملف الإكسيل
+            saveDataToSystemLog(payload);
 
             if (!navigator.onLine) {
                 saveDataOffline(payload);
                 logBox.innerHTML = `
                     📥 <strong>تم الحفظ في وضع الأوفلاين!</strong><br>
-                    الشبكة مقطوعة حالياً. سيتم إرسال البيانات لتليجرام وشيت الإكسيل تلقائياً فور عودة الإنترنت.
+                    تم تسجيل الحركة محلياً وبملف الإكسيل، وسترسل للقناة فور توفر الإنترنت.
                 `;
                 logBox.style.borderRightColor = '#e67e22';
                 return;
             }
 
-            // الإرسال المتزامن لتليجرام ولشيت الإكسيل (Make)
             sendToTelegram(payload);
-            sendToMakeWebhook(payload);
         }
 
         function sendToTelegram(payload) {
-            let message = `🔔 *تسجيل ${payload.type} جديد* \n\n`;
-            message += `👤 *الموظف:* ${payload.employeeName}\n`;
-            message += `📍 *الموقع المستهدف:* ${payload.locationName}\n`;
-            message += `🌍 *الموقع الفعلي الحالي:* ${payload.actualAddress}\n`;
-            message += `📅 *التاريخ:* ${payload.date}\n`;
-            message += `⏰ *الوقت المعتمد:* ${payload.time}\n`;
-            message += `⏱️ *إجمالي ساعات العمل اليوم:* ${payload.totalWorkHours}\n`;
-            message += `🕒 *انصراف متأخر:* ${payload.lateDeparture}\n`;
-            message += `🌐 *حالة الشبكة أثناء التسجيل:* ${payload.isOfflineData}\n`;
+            let message = `🔔 *تسجيل ${payload["نوع العملية"]} جديد* \n\n`;
+            message += `👤 *الموظف:* ${payload["اسم الموظف"]}\n`;
+            message += `📍 *الموقع المستهدف:* ${payload["الموقع المستهدف"]}\n`;
+            message += `🌍 *الموقع الفعلي الحالي:* ${payload["العنوان الفعلي الحالي"]}\n`;
+            message += `📅 *التاريخ:* ${payload["التاريخ"]}\n`;
+            message += `⏰ *الوقت المعتمد:* ${payload["الوقت"]}\n`;
+            message += `⏱️ *إجمالي ساعات العمل اليوم:* ${payload["إجمالي ساعات العمل"]}\n`;
+            message += `🕒 *انصراف متأخر:* ${payload["انصراف متأخر"]}\n`;
             
-            if(payload.latitude !== "غير متاح") {
-                message += `🗺️ *رابط الخريطة المباشر:* [اضغط لفتح خريطة المكان](Standard URL)\n`;
+            if(payload["رابط الخريطة"] !== "غير متاح") {
+                message += `🗺️ *رابط الخريطة:* [اضغط لفتح الخريطة](${payload["رابط الخريطة"]})\n`;
             }
 
             const telegramUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
@@ -331,32 +370,22 @@
                     text: message,
                     parse_mode: 'Markdown'
                 })
-            }).catch(err => console.error("خطأ تليجرام:", err));
-        }
-
-        function sendToMakeWebhook(payload) {
-            logBox.innerHTML = "⏳ جاري إرسال البيانات وحفظها في تليجرام وشيت الإكسيل...";
-
-            fetch(MAKE_WEBHOOK_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
             })
             .then(response => {
-                let bonus = payload.lateDeparture === "نعم (يوم ونص)" ? "<br><span class='bonus-info'>🕒 انصراف متأخر: تم احتساب الوقت الإضافي (يوم ونصف).</span>" : "";
                 logBox.innerHTML = `
-                    تم تسجيل <strong>${payload.type}</strong> للموظف <strong>${payload.employeeName}</strong> بنجاح!<br>
-                    📍 الموقع المختار: <strong>${payload.locationName}</strong><br>
-                    🌍 موقعك الفعلي: <strong>${payload.actualAddress}</strong><br>
-                    📊 تم التحديث في شيت الإكسيل وتليجرام.
-                    ${bonus}
+                    تم تسجيل <strong>${payload["نوع العملية"]}</strong> للموظف <strong>${payload["اسم الموظف"]}</strong> بنجاح!<br>
+                    📍 الموقع: <strong>${payload["الموقع المستهدف"]}</strong><br>
+                    📊 تم إرسال الإشعار للقناة وحفظ البيانات للتقرير.
                 `;
-                logBox.style.borderRightColor = (payload.type === 'حضور') ? '#2ecc71' : '#e74c3c';
-            })
-            .catch(error => {
-                console.error("خطأ إرسال لـ Make:", error);
-                saveDataOffline(payload);
+                logBox.style.borderRightColor = (payload["نوع العملية"] === 'حضور') ? '#2ecc71' : '#e74c3c';
             });
+        }
+
+        // حفظ البيانات في قاعدة البيانات الداخلية المخصصة للإكسيل
+        function saveDataToSystemLog(payload) {
+            let systemLog = JSON.parse(localStorage.getItem('system_excel_log')) || [];
+            systemLog.push(payload);
+            localStorage.setItem('system_excel_log', JSON.stringify(systemLog));
         }
 
         function saveDataOffline(payload) {
@@ -368,30 +397,12 @@
         async function syncOfflineData() {
             let offlineQueue = JSON.parse(localStorage.getItem('offline_queue')) || [];
             if (offlineQueue.length === 0) return;
-
-            logBox.innerHTML = `⏳ جاري ترحيل ${offlineQueue.length} عمليات مسجلة أوفلاين...`;
             
             for (let i = 0; i < offlineQueue.length; i++) {
                 let payload = offlineQueue[i];
-                payload.isOfflineData = "نعم (تمت المزامنة لاحقاً فور توفر الشبكة)";
-                
                 sendToTelegram(payload);
-                
-                try {
-                    await fetch(MAKE_WEBHOOK_URL, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                    });
-                } catch (e) {
-                    console.error("فشلت مزامنة الويب هوك مؤقتاً", e);
-                    return; 
-                }
             }
-
             localStorage.removeItem('offline_queue');
-            updateMiniDashboard();
-            alert("🌐 رائع! تم استعادة الإنترنت ومزامنة الإكسيل وتليجرام بالعمليات المحفوظة أوفلاين بنجاح.");
         }
 
         function calculateShiftHours() {
@@ -411,23 +422,52 @@
         function updateMiniDashboard() {
             const checkIn = localStorage.getItem('today_check_in');
             const checkOut = localStorage.getItem('today_check_out');
-            
             let html = "";
-            if (checkIn) {
-                const timeIn = new Date(checkIn).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
-                html += `🕒 وقت حضورك اليوم: ${timeIn}<br>`;
+            if (checkIn) html += `🕒 حضور اليوم: ${new Date(checkIn).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}<br>`;
+            if (checkOut) html += `🕒 انصراف اليوم: ${new Date(checkOut).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}<br>`;
+            if (checkIn && checkOut) html += `<strong>⏱️ إجمالي الساعات: ${calculateShiftHours()}</strong>`;
+            shiftStats.innerHTML = html || "لم يتم تسجيل حضور وانصراف لليوم لحساب الساعات بعد.";
+        }
+
+        // دالة فتح وإغلاق لوحة المدير
+        function toggleAdminPanel() {
+            const panel = document.getElementById('adminContent');
+            panel.style.display = (panel.style.display === 'block') ? 'none' : 'block';
+        }
+
+        // دالة تصدير البيانات إلى شيت إكسيل Excel عادي (.xlsx) وتحميله فوراً
+        function exportToExcel() {
+            const password = document.getElementById('adminPass').value;
+            if (password !== '1234') { // الباسورد الافتراضي (يمكنك تعديله)
+                alert("❌ عذراً! كلمة مرور المدير غير صحيحة.");
+                return;
             }
-            if (checkOut) {
-                const timeOut = new Date(checkOut).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
-                html += `🕒 وقت انصرافك اليوم: ${timeOut}<br>`;
+
+            let systemLog = JSON.parse(localStorage.getItem('system_excel_log')) || [];
+            if (systemLog.length === 0) {
+                alert("📊 لا توجد أي بيانات مسجلة حالياً لتصديرها.");
+                return;
             }
-            if (checkIn && checkOut) {
-                html += `<strong>⏱️ إجمالي ساعات العمل: ${calculateShiftHours()}</strong>`;
+
+            // توليد الشيت بواسطة مكتبة SheetJS
+            const worksheet = XLSX.utils.json_to_sheet(systemLog);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "سجل الحضور والغياب");
+
+            // تحميل الملف فوراً على جهازك
+            XLSX.writeFile(workbook, `تقرير_الحضور_والانصراف_${new Date().toISOString().slice(0,10)}.xlsx`);
+        }
+
+        // دالة مسح البيانات القديمة لبدء شهر جديد
+        function clearAllData() {
+            const password = document.getElementById('adminPass').value;
+            if (password !== '1234') {
+                alert("❌ عذراً! كلمة مرور المدير غير صحيحة.");
+                return;
             }
-            if (html !== "") {
-                shiftStats.innerHTML = html;
-            } else {
-                shiftStats.innerHTML = "لم يتم تسجيل حضور وانصراف لليوم لحساب الساعات بعد.";
+            if (confirm("⚠️ هل أنت متأكد من مسح جميع البيانات المسجلة وتصفير الإكسيل لبدء شهر جديد؟")) {
+                localStorage.removeItem('system_excel_log');
+                alert("🗑️ تم تصفير قاعدة البيانات بنجاح!");
             }
         }
     </script>
