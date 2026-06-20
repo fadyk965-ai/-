@@ -4,9 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>نظام الحضور والانصراف الذكي - YAM</title>
-    <!-- مكتبة Supabase الرسمية للاتصال المباشر -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <!-- مكتبة توليد ملفات الإكسيل -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
         body {
@@ -20,6 +17,7 @@
             padding: 20px;
             box-sizing: border-box;
         }
+
         .card {
             background-color: #ffffff;
             padding: 30px;
@@ -29,6 +27,7 @@
             width: 100%;
             max-width: 400px;
         }
+
         .company-logo {
             font-size: 36px;
             font-weight: bold;
@@ -36,36 +35,120 @@
             margin: 0 0 5px 0;
             font-family: 'Arial Black', sans-serif;
         }
+
         h2 { color: #333; margin-top: 0; margin-bottom: 25px; font-size: 20px; }
-        .form-group { text-align: right; margin-bottom: 15px; }
-        .form-group label { display: block; margin-bottom: 8px; font-weight: bold; color: #555; }
+
+        .form-group {
+            text-align: right;
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #555;
+        }
         .site-select, .name-input {
-            width: 100%; padding: 10px; font-size: 15px; border: 1px solid #ccc;
-            border-radius: 6px; background-color: #fff; outline: none; box-sizing: border-box;
+            width: 100%;
+            padding: 10px;
+            font-size: 15px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            background-color: #fff;
+            outline: none;
+            box-sizing: border-box;
         }
-        .btn-container { display: flex; justify-content: space-between; gap: 15px; margin-bottom: 20px; }
+
+        .btn-container {
+            display: flex;
+            justify-content: space-between;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
         .btn {
-            flex: 1; padding: 12px 20px; font-size: 16px; font-weight: bold; border: none;
-            border-radius: 8px; cursor: pointer; transition: all 0.3s ease; color: white;
+            flex: 1;
+            padding: 12px 20px;
+            font-size: 16px;
+            font-weight: bold;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: white;
         }
+
         .btn-attendance { background-color: #2ecc71; }
         .btn-attendance:hover { background-color: #27ae60; }
+
         .btn-departure { background-color: #e74c3c; }
         .btn-departure:hover { background-color: #c0392b; }
-        .status-badge { display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: bold; margin-bottom: 10px; }
+
+        .status-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
         .online { background-color: #d4edda; color: #155724; }
         .offline { background-color: #f8d7da; color: #721c24; }
+
         .log-box {
-            margin-top: 15px; padding: 15px; background-color: #f8f9fa; border-right: 4px solid #3498db;
-            border-radius: 4px; text-align: right; font-size: 14px; color: #555; line-height: 1.6;
+            margin-top: 15px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-right: 4px solid #3498db;
+            border-radius: 4px;
+            text-align: right;
+            font-size: 14px;
+            color: #555;
+            line-height: 1.6;
         }
-        .dashboard-mini { margin-top: 25px; border-top: 2px dashed #e0e0e0; padding-top: 15px; text-align: right; }
+
+        .dashboard-mini {
+            margin-top: 25px;
+            border-top: 2px dashed #e0e0e0;
+            padding-top: 15px;
+            text-align: right;
+        }
         .dashboard-mini h3 { font-size: 16px; color: #333; margin-bottom: 10px; }
-        .shift-info { background-color: #e8f4fd; padding: 10px; border-radius: 6px; font-size: 13px; color: #1a73e8; }
-        .admin-section { margin-top: 30px; padding-top: 15px; border-top: 2px solid #eee; text-align: center; }
-        .admin-toggle { font-size: 12px; color: #999; cursor: pointer; text-decoration: underline; }
-        .admin-content { display: none; margin-top: 10px; }
-        .btn-excel { background-color: #1f7246; color: white; width: 100%; padding: 10px; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; margin-top: 8px; }
+        .shift-info {
+            background-color: #e8f4fd;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 13px;
+            color: #1a73e8;
+        }
+
+        .admin-section {
+            margin-top: 30px;
+            padding-top: 15px;
+            border-top: 2px solid #eee;
+            text-align: center;
+        }
+        .admin-toggle {
+            font-size: 12px;
+            color: #999;
+            cursor: pointer;
+            text-decoration: underline;
+        }
+        .admin-content {
+            display: none;
+            margin-top: 10px;
+        }
+        .btn-excel {
+            background-color: #1f7246;
+            color: white;
+            width: 100%;
+            padding: 10px;
+            font-weight: bold;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-top: 8px;
+        }
         .btn-excel:hover { background-color: #155231; }
     </style>
 </head>
@@ -107,19 +190,23 @@
             <button class="btn btn-departure" onclick="withCheckOutLogic()">تسجيل انصراف</button>
         </div>
 
-        <div class="log-box" id="logBox">لم يتم تسجيل أي عملية بعد.</div>
+        <div class="log-box" id="logBox">
+            لم يتم تسجيل أي عملية بعد.
+        </div>
 
         <div class="dashboard-mini">
             <h3>📊 ملخص الوردية اليوم:</h3>
-            <div id="shiftStats" class="shift-info">لم يتم تسجيل حضور وانصراف لليوم لحساب الساعات بعد.</div>
+            <div id="shiftStats" class="shift-info">
+                لم يتم تسجيل حضور وانصراف لليوم لحساب الساعات بعد.
+            </div>
         </div>
 
         <div class="admin-section">
-            <span class="admin-toggle" onclick="toggleAdminPanel()">🔒 لوحة التحكم للمدير (إكسيل)</span>
+            <span class="admin-toggle" onclick="toggleAdminPanel()">🔒 لوحة التحكم للمدير (إكسيل محلي)</span>
             <div id="adminContent" class="admin-content">
                 <input type="password" id="adminPass" class="name-input" placeholder="أدخل كلمة مرور المدير" style="text-align: center; margin-bottom: 5px;">
-                <button class="btn-excel" onclick="exportToExcel()">تحميل تقرير إكسيل محلي 📊</button>
-                <button class="btn-excel" onclick="clearAllData()" style="background-color: #c0392b; margin-top: 5px; font-size: 12px;">تصفير السجل المحلي للبيانات ⚠️</button>
+                <button class="btn-excel" onclick="exportToExcel()">تحميل تقرير إكسيل شامل 📊</button>
+                <button class="btn-excel" onclick="clearAllData()" style="background-color: #c0392b; margin-top: 5px; font-size: 12px;">تصفير وإعادة تعيين قاعدة البيانات ⚠️</button>
             </div>
         </div>
     </div>
@@ -131,14 +218,12 @@
         const networkStatus = document.getElementById('networkStatus');
         const shiftStats = document.getElementById('shiftStats');
         
-        // ⚙️ إعدادات الربط المباشر (املأ البيانات هنا فوراً)
-        const SUPABASE_URL = 'https://your-project.supabase.co'; // رابط سوبابيس الخاص بك
-        const SUPABASE_ANON_KEY = 'your-anon-key'; // مفتاح anon الطويل
+        // إعدادات التليجرام الثابتة الخاصة بك
         const TELEGRAM_BOT_TOKEN = '8899159530:AAEnYvrr7Y_whfUO0T7-HeIgbWfy33oi7ME';
         const TELEGRAM_CHAT_ID = '-1003959462967'; 
-
-        // تفعيل اتصال Supabase المباشر
-        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        // ⚠️ ضَع هنا الرابط الحقيقي الذي حصلت عليه من ريلواي بعد الرفع (تبويب Settings ثم Networking)
+        const PYTHON_SERVER_URL = 'https://YOUR-RAILWAY-APP-URL.up.railway.app/save_attendance';
 
         window.addEventListener('online', updateNetworkStatus);
         window.addEventListener('offline', updateNetworkStatus);
@@ -156,32 +241,51 @@
 
         window.onload = function() {
             updateNetworkStatus();
+            
             const savedName = localStorage.getItem('emp_name');
-            if (savedName) employeeNameInput.value = savedName;
+            if (savedName) {
+                employeeNameInput.value = savedName;
+            }
+
+            const todayDateStr = new Date().toLocaleDateString('ar-EG');
+            const lastSavedDate = localStorage.getItem('last_saved_date');
+            if (lastSavedDate && lastSavedDate !== todayDateStr) {
+                localStorage.removeItem('today_check_in');
+                localStorage.removeItem('today_check_out');
+            }
+            localStorage.setItem('last_saved_date', todayDateStr);
+
             updateMiniDashboard();
         };
 
         function startProcess(type) {
             const empName = employeeNameInput.value.trim();
             const selectedLocation = locationSelect.value;
-            if (!empName || !selectedLocation) { alert("برجاء إدخال الاسم واختيار الموقع!"); return; }
+
+            if (!empName) { alert("برجاء كتابة الاسم بالكامل أولاً!"); return; }
+            if (!selectedLocation) { alert("برجاء اختيار موقع العمل أولاً!"); return; }
 
             localStorage.setItem('emp_name', empName);
-            logBox.innerHTML = "⏳ جاري تحديد موقعك الجغرافي...";
+
+            logBox.innerHTML = "⏳ جاري تحديد موقعك الجغرافي الدقيق وتحليل العنوان...";
+            logBox.style.borderRightColor = '#f1c40f';
 
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(
                     async (position) => {
                         const lat = position.coords.latitude;
                         const lng = position.coords.longitude;
-                        const address = await getAddressFromCoords(lat, lng);
-                        processData(type, lat, lng, selectedLocation, empName, address);
+                        
+                        const realAddress = await getAddressFromCoords(lat, lng);
+                        processData(type, lat, lng, selectedLocation, empName, realAddress);
                     },
-                    () => { processData(type, 0, 0, selectedLocation, empName, "إذن الموقع مرفوض"); },
+                    (error) => { 
+                        processData(type, 0, 0, selectedLocation, empName, "غير متاح (تم رفض إذن تحديد الموقع)");
+                    },
                     { enableHighAccuracy: true, timeout: 10000 }
                 );
             } else {
-                processData(type, 0, 0, selectedLocation, empName, "الجهاز لا يدعم الموقع");
+                processData(type, 0, 0, selectedLocation, empName, "المتصفح لا يدعم تحديد الموقع");
             }
         }
 
@@ -189,110 +293,227 @@
             try {
                 const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&accept-language=ar`);
                 const data = await response.json();
-                return data.display_name || "عنوان غير معروف";
-            } catch { return "تعذر جلب تفاصيل العنوان"; }
+                if (data && data.display_name) {
+                    return data.display_name;
+                }
+                return "يتعذر تحديد اسم المنطقة بدقة";
+            } catch (error) {
+                return "تم جلب الإحداثيات (وتعذر الاتصال بخادم العناوين)";
+            }
         }
 
-        function withCheckOutLogic() { startProcess('انصراف'); }
+        function withCheckOutLogic() {
+            startProcess('انصراف');
+        }
 
-        async function processData(type, lat, lng, locationName, empName, realAddress) {
+        function processData(type, lat, lng, locationName, empName, realAddress) {
             const now = new Date();
-            const timeString = now.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+            const timeString = now.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
             const dateString = now.toLocaleDateString('ar-EG');
+
+            let isLateDeparture = false;
+            if (type === 'انصراف' && now.getHours() >= 19) {
+                isLateDeparture = true;
+            }
+
+            if (type === 'حضور') {
+                localStorage.setItem('today_check_in', now.toISOString());
+            } else {
+                localStorage.setItem('today_check_out', now.toISOString());
+            }
+            updateMiniDashboard();
+
+            const totalHoursFormatted = calculateShiftHours();
             const mapUrl = lat !== 0 ? `https://www.google.com/maps?q=${lat},${lng}` : "غير متاح";
 
-            if (type === 'حضور') localStorage.setItem('today_check_in', now.toISOString());
-            else localStorage.setItem('today_check_out', now.toISOString());
-            
-            updateMiniDashboard();
-            const totalHours = calculateShiftHours();
+            // 💾 1. حفظ البيانات داخلياً في المتصفح للحسابات والنسخ الاحتياطي المحلي
+            const localPayload = {
+                "نوع العملية": type,
+                "اسم الموظف": empName,
+                "الموقع المستهدف": locationName,
+                "العنوان الفعلي الحالي": realAddress,
+                "التاريخ": dateString,
+                "الوقت": timeString,
+                "إجمالي ساعات العمل": totalHoursFormatted,
+                "انصراف متأخر": isLateDeparture ? "نعم (يوم ونص)" : "لا",
+                "رابط الخريطة": mapUrl,
+                "أوفلاين": !navigator.onLine ? "نعم" : "لا"
+            };
+            saveDataToSystemLog(localPayload);
 
-            const payload = {
+            // ⚙️ تجهيز البيانات المتوافقة مع سيرفر بايثون (تعديل لغوي لتطابق الـ Backend)
+            const pythonPayload = {
                 employee: empName,
                 type: type,
                 target_location: locationName,
                 actual_location: realAddress,
                 date: dateString,
                 time: timeString,
-                hours: totalHours,
-                map_url: mapUrl
+                hours: totalHoursFormatted
             };
 
-            saveDataToSystemLog(payload);
-
+            // 💻 2. إرسال البيانات فوراً لسيرفر بايثون السحابي لتحديث الإكسيل المركزي
             if (navigator.onLine) {
-                // حفظ مباشر في داتا بيز Supabase بدون سيرفر وسيط
-                try {
-                    await supabase.from('attendance').insert([payload]);
-                    logBox.innerHTML = `✅ تم تسجيل الـ ${type} بنجاح في قاعدة البيانات المباشرة!`;
-                } catch (err) {
-                    console.error("Supabase Error:", err);
-                }
-                sendToTelegram(payload);
+                sendToPythonServer(pythonPayload);
+                sendToTelegram(localPayload);
             } else {
-                saveDataOffline(payload);
-                logBox.innerHTML = `📥 تم الحفظ محلياً (أوفلاين)، وسيتم المزامنة فور عودة الشبكة.`;
+                saveDataOffline(pythonPayload);
+                logBox.innerHTML = `
+                    📥 <strong>تم الحفظ في وضع الأوفلاين!</strong><br>
+                    تم تسجيل الحركة محلياً وبملف الإكسيل، وسترسل للقناة والسيرفر فور توفر الإنترنت.
+                `;
+                logBox.style.borderRightColor = '#e67e22';
             }
         }
 
-        function sendToTelegram(p) {
-            let msg = `🔔 *تسجيل ${p.type} جديد*\n\n👤 *الموظف:* ${p.employee}\n📍 *الموقع:* ${p.target_location}\n🌍 *الموقع الفعلي:* ${p.actual_location}\n📅 *التاريخ:* ${p.date} | ⏰ *الوقت:* ${p.time}\n⏱️ *ساعات العمل:* ${p.hours}\n🗺️ [رابط الخريطة](${p.map_url})`;
-            fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ chat_id: TELEGRAM_CHAT_ID, text: msg, parse_mode: 'Markdown' })
+        function sendToPythonServer(serverData) {
+            fetch(PYTHON_SERVER_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(serverData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === "success") {
+                    console.log("--> Successfully synced with Python Excel Server.");
+                }
+            })
+            .catch(error => {
+                console.error("--> Python Server is unreachable:", error);
             });
         }
 
-        function saveDataToSystemLog(p) {
-            let log = JSON.parse(localStorage.getItem('system_excel_log')) || [];
-            log.push(p);
-            localStorage.setItem('system_excel_log', JSON.stringify(log));
+        function sendToTelegram(payload) {
+            let message = `🔔 *تسجيل ${payload["نوع العملية"]} جديد* \n\n`;
+            message += `👤 *الموظف:* ${payload["اسم الموظف"]}\n`;
+            message += `📍 *الموقع المستهدف:* ${payload["الموقع المستهدف"]}\n`;
+            message += `🌍 *الموقع الفعلي الحالي:* ${payload["العنوان الفعلي الحالي"]}\n`;
+            message += `📅 *التاريخ:* ${payload["التاريخ"]}\n`;
+            message += `⏰ *الوقت المعتمد:* ${payload["الوقت"]}\n`;
+            message += `⏱️ *إجمالي ساعات العمل اليوم:* ${payload["إجمالي ساعات العمل"]}\n`;
+            message += `🕒 *انصراف متأخر:* ${payload["انصراف متأخر"]}\n`;
+            
+            if(payload["رابط الخريطة"] !== "غير متاح") {
+                message += `🗺️ *رابط الخريطة:* [اضغط لفتح الخريطة](${payload["رابط الخريطة"]})\n`;
+            }
+
+            const telegramUrl = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
+
+            fetch(telegramUrl, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    chat_id: TELEGRAM_CHAT_ID,
+                    text: message,
+                    parse_mode: 'Markdown'
+                })
+            })
+            .then(response => {
+                logBox.innerHTML = `
+                    تم تسجيل <strong>${payload["نوع العملية"]}</strong> للموظف <strong>${payload["اسم الموظف"]}</strong> بنجاح!<br>
+                    📍 الموقع: <strong>${payload["الموقع المستهدف"]}</strong><br>
+                    📊 تم إرسال الإشعار للقناة وحفظ البيانات للتقرير المركزي السحابي.
+                `;
+                logBox.style.borderRightColor = (payload["نوع العملية"] === 'حضور') ? '#2ecc71' : '#e74c3c';
+            });
         }
 
-        function saveDataOffline(p) {
-            let q = JSON.parse(localStorage.getItem('offline_queue')) || [];
-            q.push(p);
-            localStorage.setItem('offline_queue', JSON.stringify(q));
+        function saveDataToSystemLog(payload) {
+            let systemLog = JSON.parse(localStorage.getItem('system_excel_log')) || [];
+            systemLog.push(payload);
+            localStorage.setItem('system_excel_log', JSON.stringify(systemLog));
+        }
+
+        function saveDataOffline(payload) {
+            let offlineQueue = JSON.parse(localStorage.getItem('offline_queue')) || [];
+            offlineQueue.push(payload);
+            localStorage.setItem('offline_queue', JSON.stringify(offlineQueue));
         }
 
         async function syncOfflineData() {
-            let q = JSON.parse(localStorage.getItem('offline_queue')) || [];
-            if (q.length === 0) return;
-            for (let p of q) {
-                await supabase.from('attendance').insert([p]);
-                sendToTelegram(p);
+            let offlineQueue = JSON.parse(localStorage.getItem('offline_queue')) || [];
+            if (offlineQueue.length === 0) return;
+            
+            for (let i = 0; i < offlineQueue.length; i++) {
+                let payload = offlineQueue[i];
+                sendToPythonServer(payload); 
+                
+                // إعادة بناء payload التليجرام العربي للعرض الصحيح
+                const localFormat = {
+                    "نوع العملية": payload.type,
+                    "اسم الموظف": payload.employee,
+                    "الموقع المستهدف": payload.target_location,
+                    "العنوان الفعلي الحالي": payload.actual_location,
+                    "التاريخ": payload.date,
+                    "الوقت": payload.time,
+                    "إجمالي ساعات العمل": payload.hours,
+                    "انصراف متأخر": "لا يعاد حسابه أوفلاين",
+                    "رابط الخريطة": "غير متاح أوفلاين"
+                };
+                sendToTelegram(localFormat);
             }
             localStorage.removeItem('offline_queue');
         }
 
         function calculateShiftHours() {
-            const cin = localStorage.getItem('today_check_in');
-            const cout = localStorage.getItem('today_check_out');
-            if (cin && cout) {
-                const diff = new Date(cout) - new Date(cin);
-                if (diff > 0) return `${Math.floor(diff / 3600000)} ساعة و ${Math.floor((diff % 3600000) / 60000)} دقيقة`;
+            const checkIn = localStorage.getItem('today_check_in');
+            const checkOut = localStorage.getItem('today_check_out');
+            if (checkIn && checkOut) {
+                const diffMs = new Date(checkOut) - new Date(checkIn);
+                if (diffMs > 0) {
+                    const diffHrs = Math.floor(diffMs / 3600000);
+                    const diffMins = Math.floor((diffMs % 3600000) / 60000);
+                    return `${diffHrs} ساعة و ${diffMins} دقيقة`;
+                }
             }
-            return "غير محدد";
+            return "غير محدد بعد";
         }
 
         function updateMiniDashboard() {
-            const cin = localStorage.getItem('today_check_in');
-            const cout = localStorage.getItem('today_check_out');
+            const checkIn = localStorage.getItem('today_check_in');
+            const checkOut = localStorage.getItem('today_check_out');
             let html = "";
-            if (cin) html += `🕒 حضور: ${new Date(cin).toLocaleTimeString('ar-EG')}<br>`;
-            if (cout) html += `🕒 انصراف: ${new Date(cout).toLocaleTimeString('ar-EG')}<br>`;
-            if (cin && cout) html += `<strong>⏱️ الساعات: ${calculateShiftHours()}</strong>`;
-            shiftStats.innerHTML = html || "في انتظار تسجيل الحركات الحية.";
+            if (checkIn) html += `🕒 حضور اليوم: ${new Date(checkIn).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}<br>`;
+            if (checkOut) html += `🕒 انصراف اليوم: ${new Date(checkOut).toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' })}<br>`;
+            if (checkIn && checkOut) html += `<strong>⏱️ إجمالي الساعات: ${calculateShiftHours()}</strong>`;
+            shiftStats.innerHTML = html || "لم يتم تسجيل حضور وانصراف لليوم لحساب الساعات بعد.";
         }
 
-        function toggleAdminPanel() { const p = document.getElementById('adminContent'); p.style.display = p.style.display === 'block' ? 'none' : 'block'; }
-        function exportToExcel() {
-            if (document.getElementById('adminPass').value !== '1234') { alert("خطأ!"); return; }
-            let log = JSON.parse(localStorage.getItem('system_excel_log')) || [];
-            const ws = XLSX.utils.json_to_sheet(log); const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, "Log"); XLSX.writeFile(wb, "report.xlsx");
+        function toggleAdminPanel() {
+            const panel = document.getElementById('adminContent');
+            panel.style.display = (panel.style.display === 'block') ? 'none' : 'block';
         }
-        function clearAllData() { if (document.getElementById('adminPass').value === '1234' && confirm("مسح؟")) localStorage.removeItem('system_excel_log'); }
+
+        function exportToExcel() {
+            const password = document.getElementById('adminPass').value;
+            if (password !== '1234') {
+                alert("❌ عذراً! كلمة مرور المدير غير صحيحة.");
+                return;
+            }
+
+            let systemLog = JSON.parse(localStorage.getItem('system_excel_log')) || [];
+            if (systemLog.length === 0) {
+                alert("📊 لا توجد أي بيانات مسجلة حالياً لتصديرها.");
+                return;
+            }
+
+            const worksheet = XLSX.utils.json_to_sheet(systemLog);
+            const workbook = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(workbook, worksheet, "سجل الحضور والغياب");
+            XLSX.writeFile(workbook, `تقرير_الحضور_والانصراف_${new Date().toISOString().slice(0,10)}.xlsx`);
+        }
+
+        function clearAllData() {
+            const password = document.getElementById('adminPass').value;
+            if (password !== '1234') {
+                alert("❌ عذراً! كلمة مرور المدير غير صحيحة.");
+                return;
+            }
+            if (confirm("⚠️ هل أنت متأكد من مسح جميع البيانات المسجلة وتصفير الإكسيل لبدء شهر جديد؟")) {
+                localStorage.removeItem('system_excel_log');
+                alert("🗑️ تم تصفير قاعدة البيانات بنجاح!");
+            }
+        }
     </script>
 </body>
 </html>
