@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>نظام الحضور والانصراف الذكي - YAM</title>
-    <!-- مكتبة توليد ملفات الإكسيل العادية XLSX -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <style>
         body {
@@ -203,13 +202,12 @@
             </div>
         </div>
 
-        <!-- 🔒 قسم لوحة المدير السري لاستخراج الإكسيل -->
         <div class="admin-section">
             <span class="admin-toggle" onclick="toggleAdminPanel()">🔒 لوحة التحكم للمدير (إكسيل)</span>
             <div id="adminContent" class="admin-content">
                 <input type="password" id="adminPass" class="name-input" placeholder="أدخل كلمة مرور المدير" style="text-align: center; margin-bottom: 5px;">
-                <button class="btn-excel" onclick="exportToExcel()">تحميل تقرير إكسيل شامل 📊</button>
-                <button class="btn-excel" onclick="clearAllData()" style="background-color: #c0392b; margin-top: 5px; font-size: 12px;">تصفير وإعادة تعيين قاعدة البيانات ⚠️</button>
+                <button class="btn-excel" onclick="exportToExcel()">تحميل تقرير إكسيل محلي 📊</button>
+                <button class="btn-excel" onclick="clearAllData()" style="background-color: #c0392b; margin-top: 5px; font-size: 12px;">تصفير السجل المحلي للبيانات ⚠️</button>
             </div>
         </div>
     </div>
@@ -225,7 +223,7 @@
         const TELEGRAM_BOT_TOKEN = '8899159530:AAEnYvrr7Y_whfUO0T7-HeIgbWfy33oi7ME';
         const TELEGRAM_CHAT_ID = '-1003959462967'; 
         
-        // ⚠️ استبدل هذا الرابط برابط السيرفر الخاص بك على ريلواي (مثال: https://your-app.up.railway.app/save_attendance)
+        // 🔗 ⚠️ ضع هنا رابط سيرفر بايثون الحقيقي الخاص بك على ريلواي المنتهي بـ /save_attendance
         const PYTHON_SERVER_URL = 'https://YOUR-RAILWAY-APP-URL.up.railway.app/save_attendance';
 
         window.addEventListener('online', updateNetworkStatus);
@@ -342,25 +340,23 @@
                 "أوفلاين": !navigator.onLine ? "نعم" : "لا"
             };
 
-            // 💾 1. حفظ البيانات داخلياً في المتصفح كالمعتاد
+            // 💾 1. حفظ نسخة في المتصفح احتياطياً للتقارير اليدوية
             saveDataToSystemLog(payload);
 
-            // 💻 2. إرسال البيانات فوراً لسيرفر بايثون السحابي لتحديث الإكسيل المركزي
+            // 💻 2. إرسال البيانات فوراً لسيرفر بايثون على ريلواي ليخزنها في قاعدة البيانات السحابية
             if (navigator.onLine) {
                 sendToPythonServer(payload);
-            }
-
-            if (!navigator.onLine) {
+            } else {
                 saveDataOffline(payload);
                 logBox.innerHTML = `
                     📥 <strong>تم الحفظ في وضع الأوفلاين!</strong><br>
-                    تم تسجيل الحركة محلياً وبملف الإكسيل، وسترسل للقناة فور توفر الإنترنت.
+                    تم تسجيل الحركة محلياً بنجاح، وسترسل لقاعدة البيانات والتليجرام فور توفر الإنترنت.
                 `;
                 logBox.style.borderRightColor = '#e67e22';
                 return;
             }
 
-            // 🔔 3. إرسال الإشعار لقناة التليجرام
+            // 🔔 3. إرسال الإشعار لقناة التليجرام المربوطة
             sendToTelegram(payload);
         }
 
@@ -383,11 +379,11 @@
             .then(response => response.json())
             .then(data => {
                 if (data.status === "success") {
-                    console.log("--> Successfully synced with Python Excel Server.");
+                    console.log("--> Successfully synced with Cloud Database via Railway.");
                 }
             })
             .catch(error => {
-                console.error("--> Python Server is unreachable:", error);
+                console.error("--> Railway Server connection failed:", error);
             });
         }
 
@@ -419,8 +415,8 @@
             .then(response => {
                 logBox.innerHTML = `
                     تم تسجيل <strong>${payload["نوع العملية"]}</strong> للموظف <strong>${payload["اسم الموظف"]}</strong> بنجاح!<br>
-                    📍 الموقع: <strong>${payload["الموقع المستهدف"]}</strong><br>
-                    📊 تم إرسال الإشعار للقناة وحفظ البيانات للتقرير المركزي.
+                    📍 الموقع المستهدف: <strong>${payload["الموقع المستهدف"]}</strong><br>
+                    📊 تم تحديث قاعدة البيانات وإشعار قناة الإدارة بالتليجرام.
                 `;
                 logBox.style.borderRightColor = (payload["نوع العملية"] === 'حضور') ? '#2ecc71' : '#e74c3c';
             });
@@ -488,14 +484,14 @@
 
             let systemLog = JSON.parse(localStorage.getItem('system_excel_log')) || [];
             if (systemLog.length === 0) {
-                alert("📊 لا توجد أي بيانات مسجلة حالياً لتصديرها.");
+                alert("📊 لا توجد أي بيانات مسجلة في هذا الجهاز حالياً لتصديرها.");
                 return;
             }
 
             const worksheet = XLSX.utils.json_to_sheet(systemLog);
             const workbook = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(workbook, worksheet, "سجل الحضور والغياب");
-            XLSX.writeFile(workbook, `تقرير_الحضور_والانصراف_${new Date().toISOString().slice(0,10)}.xlsx`);
+            XLSX.utils.book_append_sheet(workbook, worksheet, "سجل الحضور والغياب المباشر");
+            XLSX.writeFile(workbook, `تقرير_حركات_الجهاز_${new Date().toISOString().slice(0,10)}.xlsx`);
         }
 
         function clearAllData() {
@@ -504,9 +500,9 @@
                 alert("❌ عذراً! كلمة مرور المدير غير صحيحة.");
                 return;
             }
-            if (confirm("⚠️ هل أنت متأكد من مسح جميع البيانات المسجلة وتصفير الإكسيل لبدء شهر جديد؟")) {
+            if (confirm("⚠️ هل أنت متأكد من مسح السجل المحلي الماكث في هذا المتصفح؟")) {
                 localStorage.removeItem('system_excel_log');
-                alert("🗑️ تم تصفير قاعدة البيانات بنجاح!");
+                alert("🗑️ تم تفريغ الذاكرة المحلية للجهاز.");
             }
         }
     </script>
