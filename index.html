@@ -174,7 +174,16 @@
                 <option value="المقر الرئيسي">المقر الرئيسي</option>
                 <option value="موقع التجمع الخامس">موقع التجمع الخامس</option>
                 <option value="موقع العاصمة الإدارية">موقع العاصمة الإدارية</option>
-                <option value="موقع أكتوبر">موقع أكتوبر</option>
+                <option value="مخزن الامام الشافعي">مخزن الامام الشافعي</option>
+                <option value="9 سايد">9 سايد</option>
+                <option value="محل سبايسي تشيكن البير">محل سبايسي تشيكن البير</option>
+                <option value="محل سبايسي تشيكن مدينه نصر">محل سبايسي تشيكن مدينه نصر</option>
+                <option value="فيلا الحج محمد اب تاون">فيلا الحج محمد اب تاون</option>
+                <option value="اب تاون">اب تاون</option>
+                <option value="مزرعه الحج محمد">مزرعه الحج محمد</option>
+                <option value="مشروع نيكست الهضبي الوسطي">مشروع نيكست الهضبي الوسطي</option>
+                <option value="مصنع جرجس التجمع ">مصنع جرجس التجمع</option>
+                <option value="جدران زهراء المعادي">جدران زهراء المعادي</option>
             </select>
         </div>
 
@@ -215,6 +224,9 @@
         // إعدادات التليجرام الثابتة الخاصة بك
         const TELEGRAM_BOT_TOKEN = '8899159530:AAEnYvrr7Y_whfUO0T7-HeIgbWfy33oi7ME';
         const TELEGRAM_CHAT_ID = '-1003959462967'; 
+        
+        // ⚠️ استبدل هذا الرابط برابط السيرفر الخاص بك على ريلواي (مثال: https://your-app.up.railway.app/save_attendance)
+        const PYTHON_SERVER_URL = 'https://YOUR-RAILWAY-APP-URL.up.railway.app/save_attendance';
 
         window.addEventListener('online', updateNetworkStatus);
         window.addEventListener('offline', updateNetworkStatus);
@@ -330,8 +342,13 @@
                 "أوفلاين": !navigator.onLine ? "نعم" : "لا"
             };
 
-            // 💾 حفظ الحركة في السجل الداخلي لملف الإكسيل
+            // 💾 1. حفظ البيانات داخلياً في المتصفح كالمعتاد
             saveDataToSystemLog(payload);
+
+            // 💻 2. إرسال البيانات فوراً لسيرفر بايثون السحابي لتحديث الإكسيل المركزي
+            if (navigator.onLine) {
+                sendToPythonServer(payload);
+            }
 
             if (!navigator.onLine) {
                 saveDataOffline(payload);
@@ -343,7 +360,35 @@
                 return;
             }
 
+            // 🔔 3. إرسال الإشعار لقناة التليجرام
             sendToTelegram(payload);
+        }
+
+        function sendToPythonServer(payload) {
+            const serverData = {
+                employee: payload["اسم الموظف"],
+                type: payload["نوع العملية"],
+                target_location: payload["الموقع المستهدف"],
+                actual_location: payload["العنوان الفعلي الحالي"],
+                date: payload["التاريخ"],
+                time: payload["الوقت"],
+                hours: payload["إجمالي ساعات العمل"]
+            };
+
+            fetch(PYTHON_SERVER_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(serverData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === "success") {
+                    console.log("--> Successfully synced with Python Excel Server.");
+                }
+            })
+            .catch(error => {
+                console.error("--> Python Server is unreachable:", error);
+            });
         }
 
         function sendToTelegram(payload) {
@@ -375,13 +420,12 @@
                 logBox.innerHTML = `
                     تم تسجيل <strong>${payload["نوع العملية"]}</strong> للموظف <strong>${payload["اسم الموظف"]}</strong> بنجاح!<br>
                     📍 الموقع: <strong>${payload["الموقع المستهدف"]}</strong><br>
-                    📊 تم إرسال الإشعار للقناة وحفظ البيانات للتقرير.
+                    📊 تم إرسال الإشعار للقناة وحفظ البيانات للتقرير المركزي.
                 `;
                 logBox.style.borderRightColor = (payload["نوع العملية"] === 'حضور') ? '#2ecc71' : '#e74c3c';
             });
         }
 
-        // حفظ البيانات في قاعدة البيانات الداخلية المخصصة للإكسيل
         function saveDataToSystemLog(payload) {
             let systemLog = JSON.parse(localStorage.getItem('system_excel_log')) || [];
             systemLog.push(payload);
@@ -400,6 +444,7 @@
             
             for (let i = 0; i < offlineQueue.length; i++) {
                 let payload = offlineQueue[i];
+                sendToPythonServer(payload); 
                 sendToTelegram(payload);
             }
             localStorage.removeItem('offline_queue');
@@ -429,16 +474,14 @@
             shiftStats.innerHTML = html || "لم يتم تسجيل حضور وانصراف لليوم لحساب الساعات بعد.";
         }
 
-        // دالة فتح وإغلاق لوحة المدير
         function toggleAdminPanel() {
             const panel = document.getElementById('adminContent');
             panel.style.display = (panel.style.display === 'block') ? 'none' : 'block';
         }
 
-        // دالة تصدير البيانات إلى شيت إكسيل Excel عادي (.xlsx) وتحميله فوراً
         function exportToExcel() {
             const password = document.getElementById('adminPass').value;
-            if (password !== '1234') { // الباسورد الافتراضي (يمكنك تعديله)
+            if (password !== '1234') {
                 alert("❌ عذراً! كلمة مرور المدير غير صحيحة.");
                 return;
             }
@@ -449,16 +492,12 @@
                 return;
             }
 
-            // توليد الشيت بواسطة مكتبة SheetJS
             const worksheet = XLSX.utils.json_to_sheet(systemLog);
             const workbook = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(workbook, worksheet, "سجل الحضور والغياب");
-
-            // تحميل الملف فوراً على جهازك
             XLSX.writeFile(workbook, `تقرير_الحضور_والانصراف_${new Date().toISOString().slice(0,10)}.xlsx`);
         }
 
-        // دالة مسح البيانات القديمة لبدء شهر جديد
         function clearAllData() {
             const password = document.getElementById('adminPass').value;
             if (password !== '1234') {
